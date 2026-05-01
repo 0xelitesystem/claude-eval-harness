@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Eval Harness</title>
+<meta name="description" content="Run the same prompt against multiple Claude models side-by-side. Compare quality, latency, and cost. BYOK.">
+<meta name="ai.description" content="Single-file HTML tool for comparing Claude model outputs. User provides their own Anthropic API key, picks 1-4 models, sends a prompt, sees outputs in a comparison grid with latency in milliseconds, token counts, and computed cost per call. Light and dark themes. JSON export. No frameworks, no dependencies, no third-party scripts. Key stays in browser memory only.">
+<meta property="og:title" content="Claude Eval Harness">
+<meta property="og:description" content="Run the same prompt against multiple Claude models side-by-side.">
+<meta property="og:type" content="website">
+<style>
+:root {
+  --bg: #f4f4f0;
+  --surface: #ffffff;
+  --ink: #0e0e0e;
+  --ink-soft: #555555;
+  --rule: #d8d8d2;
+  --rule-strong: #0e0e0e;
+  --accent: #bf005e;
+  --accent-soft: #fce4ef;
+  --warn: #b8500a;
+  --warn-soft: #faecd9;
+  --error: #b3261e;
+  --error-soft: #fbe9e7;
+  --ok: #1f6f43;
+  --ok-soft: #e3f2ea;
+}
+[data-theme="dark"] {
+  --bg: #0e0e0e;
+  --surface: #1a1a1a;
+  --ink: #f4f4f0;
+  --ink-soft: #b0b0a8;
+  --rule: #2a2a2a;
+  --rule-strong: #f4f4f0;
+  --accent: #ff4d9f;
+  --accent-soft: #3d1428;
+  --warn: #e6a960;
+  --warn-soft: #3d2f1c;
+  --error: #f08585;
+  --error-soft: #3d2222;
+  --ok: #7fc99c;
+  --ok-soft: #1f3327;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+  font-size: 15px;
+  min-height: 100vh;
+  font-feature-settings: "ss01" on, "cv11" on;
+}
+
+.skip-link {
+  position: absolute; left: -9999px; top: 0;
+  background: var(--accent); color: var(--surface);
+  padding: 0.5rem 1rem; z-index: 100; font-weight: 600;
+}
+.skip-link:focus { left: 1rem; top: 1rem; }
+
+.layout {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 3rem 2rem 5rem;
+}
+
+/* Swiss-style header: heavy rule, generous baseline */
+header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2rem;
+  align-items: end;
+  padding-bottom: 1.25rem;
+  border-bottom: 2px solid var(--rule-strong);
+  margin-bottom: 3rem;
+}
+.brand {
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+h1 {
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+h1 .accent { color: var(--accent); }
+.subtitle {
+  margin-top: 0.625rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  max-width: 560px;
+}
+.theme-toggle {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  padding: 0.5rem 0.875rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.theme-toggle:hover { background: var(--ink); color: var(--bg); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle svg { width: 14px; height: 14px; }
+
+/* Section pattern: numbered, ruled, generous */
+section {
+  margin-bottom: 2.5rem;
+}
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.875rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+.section-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 0.375rem;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+input[type="password"], input[type="text"], input[type="number"], textarea, select {
+  width: 100%;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 0.625rem 0.75rem;
+  font: inherit;
+  font-size: 0.9375rem;
+}
+input[type="password"], input[type="text"] {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.55;
+}
+input:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+.help {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+.help a { color: var(--accent); }
+
+/* Buttons: hard edges, no rounding (Swiss) */
+button.primary, button.secondary {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.625rem 1.125rem;
+  border-radius: 0;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  transition: background 80ms linear, color 80ms linear;
+}
+button.primary {
+  background: var(--ink);
+  color: var(--bg);
+  border: 1px solid var(--ink);
+}
+button.primary:hover:not(:disabled) {
+  background: var(--accent); border-color: var(--accent); color: var(--surface);
+}
+button.secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+}
+button.secondary:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.row {
+  display: flex; gap: 0.625rem; flex-wrap: wrap; margin-top: 0.875rem;
+  align-items: center;
+}
+
+/* Status block */
+.status {
+  margin-top: 0.875rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0;
+  font-size: 0.8125rem;
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+}
+.status .label {
+  font-weight: 700;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.status.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.status.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.status.err { background: var(--error-soft); border-color: var(--error); color: var(--error); }
+
+.spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+  opacity: 0.7;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Key state machine */
+#key-section[data-state="validated"] #key-fields { display: none; }
+#key-section[data-state="validated"] #key-validated { display: flex; }
+#key-validated { display: none; align-items: center; justify-content: space-between; gap: 1rem; }
+
+/* Hide steps until prerequisites met */
+#prompt-section, #models-section, #run-section, #results-section { display: none; }
+#key-section[data-state="validated"] ~ #prompt-section,
+#key-section[data-state="validated"] ~ #models-section,
+#key-section[data-state="validated"] ~ #run-section { display: block; }
+
+/* Model picker grid */
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+.model-card {
+  position: relative;
+  display: block;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 0.875rem 1rem;
+  user-select: none;
+}
+.model-card:hover { border-color: var(--ink); }
+.model-card input[type="checkbox"] {
+  position: absolute; opacity: 0; pointer-events: none;
+}
+.model-card:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: 1px solid var(--accent);
+  outline-offset: -2px;
+}
+.model-card:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.model-name {
+  font-weight: 600; font-size: 0.9375rem; margin-bottom: 0.25rem;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+.model-tier {
+  font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-soft); margin-bottom: 0.5rem;
+}
+.model-pricing {
+  font-size: 0.75rem; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Results grid: columns = models, contents = output + metrics */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.result-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  display: flex; flex-direction: column;
+  min-height: 180px;
+}
+.result-head {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--rule);
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--bg);
+}
+.result-head .name {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875rem; font-weight: 600;
+}
+.result-head .badge {
+  font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em;
+  font-weight: 600; padding: 0.15rem 0.5rem;
+}
+.badge.pending { background: var(--bg); color: var(--ink-soft); border: 1px solid var(--rule); }
+.badge.ok { background: var(--ok); color: var(--surface); }
+.badge.err { background: var(--error); color: var(--surface); }
+.result-body {
+  padding: 0.875rem 1rem;
+  flex: 1; overflow: hidden;
+  font-size: 0.9375rem; line-height: 1.55;
+  white-space: pre-wrap; word-wrap: break-word;
+  color: var(--ink);
+  max-height: 420px; overflow-y: auto;
+}
+.result-body.placeholder {
+  color: var(--ink-soft); font-style: italic;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+}
+.result-foot {
+  padding: 0.625rem 0.875rem;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  background: var(--bg);
+}
+.metric { display: flex; flex-direction: column; gap: 0.125rem; }
+.metric .lbl {
+  font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink-soft); font-weight: 600;
+}
+.metric .val {
+  font-size: 0.875rem; font-weight: 600;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.metric.error-msg { grid-column: 1 / -1; }
+.metric.error-msg .val { font-size: 0.75rem; color: var(--error); white-space: normal; }
+
+/* Aggregate row */
+.aggregate {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1.25rem;
+  display: none;
+}
+.aggregate.visible { display: grid; }
+.agg-cell .lbl {
+  font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink-soft); font-weight: 600; margin-bottom: 0.25rem;
+}
+.agg-cell .val {
+  font-size: 1.125rem; font-weight: 700;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+footer {
+  margin-top: 4rem; padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.75rem; color: var(--ink-soft);
+  line-height: 1.7;
+}
+footer a { color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
+footer a:hover, footer a:focus { color: var(--accent); }
+
+@media (max-width: 640px) {
+  .layout { padding: 1.5rem 1.25rem 3rem; }
+  header { grid-template-columns: 1fr; gap: 1rem; }
+  h1 { font-size: 1.75rem; }
+  .result-foot { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body data-theme="light">
+<a href="#main" class="skip-link">Skip to main content</a>
+<div class="layout">
+
+  <header>
+    <div>
+      <div class="brand">Claude / Eval / Harness</div>
+      <h1>Model<br><span class="accent">comparison</span> grid</h1>
+      <p class="subtitle">Send one prompt to multiple Claude models. Compare outputs, latency, and cost. Your key stays in this tab.</p>
+    </div>
+    <button type="button" class="theme-toggle" id="theme-btn" aria-label="Toggle dark theme" aria-pressed="false">
+      <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+      </svg>
+      <span id="theme-label">Dark</span>
+    </button>
+  </header>
+
+  <main id="main">
+
+    <!-- 1. KEY -->
+    <section id="key-section" data-state="empty" aria-labelledby="key-h">
+      <div class="section-head">
+        <span class="section-num">01</span>
+        <h2 class="section-title" id="key-h">API key</h2>
+      </div>
+      <div id="key-fields">
+        <label for="api-key">Anthropic API key</label>
+        <input type="password" id="api-key" autocomplete="off" spellcheck="false" placeholder="sk-ant-..." aria-describedby="key-help">
+        <p class="help" id="key-help">
+          Get a key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.
+          Held in this browser tab only. Never written to localStorage, sessionStorage, cookies, or any URL. Closing or refreshing this tab discards it.
+        </p>
+        <div class="row">
+          <button type="button" class="primary" id="validate-btn">Validate &amp; save</button>
+        </div>
+        <div id="key-status" role="status" aria-live="polite"></div>
+      </div>
+      <div id="key-validated">
+        <div class="status ok" style="margin: 0; flex: 1;">
+          <span class="label">OK</span>
+          <span>Key validated. Stored in memory for this session only.</span>
+        </div>
+        <button type="button" class="secondary" id="clear-btn">Clear key</button>
+      </div>
+    </section>
+
+    <!-- 2. PROMPT -->
+    <section id="prompt-section" aria-labelledby="prompt-h">
+      <div class="section-head">
+        <span class="section-num">02</span>
+        <h2 class="section-title" id="prompt-h">Prompt</h2>
+      </div>
+      <label for="user-prompt">User message</label>
+      <textarea id="user-prompt" placeholder="Write a haiku about debugging code at 3am."></textarea>
+      <p class="help">The same prompt will be sent to every selected model. Cmd/Ctrl+Enter runs from inside this field.</p>
+
+      <details style="margin-top: 1rem;">
+        <summary style="cursor: pointer; font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft);">Advanced options</summary>
+        <div style="margin-top: 0.875rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label for="system-prompt">System prompt (optional)</label>
+            <textarea id="system-prompt" placeholder="You are a helpful assistant." style="min-height: 80px;"></textarea>
+          </div>
+          <div>
+            <label for="max-tokens">Max output tokens</label>
+            <input type="number" id="max-tokens" min="1" max="8192" value="1024">
+            <p class="help" style="margin-top: 0.5rem;">Higher = longer outputs allowed. Higher = costs more if used.</p>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- 3. MODELS -->
+    <section id="models-section" aria-labelledby="models-h">
+      <div class="section-head">
+        <span class="section-num">03</span>
+        <h2 class="section-title" id="models-h">Models</h2>
+      </div>
+      <p class="help" style="margin-top: 0; margin-bottom: 0.875rem;">
+        Select one or more models. Pricing shown is per 1M tokens (input / output). Verify current pricing at <a href="https://www.anthropic.com/pricing" target="_blank" rel="noopener">anthropic.com/pricing</a> before relying on cost numbers.
+      </p>
+      <div class="model-grid" id="model-grid"></div>
+    </section>
+
+    <!-- 4. RUN -->
+    <section id="run-section">
+      <div class="row">
+        <button type="button" class="primary" id="run-btn">Run all selected</button>
+        <button type="button" class="secondary" id="export-btn" disabled>Export JSON</button>
+        <button type="button" class="secondary" id="clear-results-btn" disabled>Clear results</button>
+      </div>
+      <div id="run-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <!-- 5. RESULTS -->
+    <section id="results-section" aria-labelledby="results-h">
+      <div class="section-head">
+        <span class="section-num">04</span>
+        <h2 class="section-title" id="results-h">Results</h2>
+      </div>
+      <div class="results-grid" id="results-grid" aria-live="polite" aria-atomic="false"></div>
+      <div class="aggregate" id="aggregate" aria-live="polite"></div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>Source: <a href="https://github.com/0xelitesystem/claude-eval-harness" target="_blank" rel="noopener">github.com/0xelitesystem/claude-eval-harness</a></p>
+    <p>Related: <a href="https://github.com/0xelitesystem/byok-patterns" target="_blank" rel="noopener">byok-patterns</a> &middot; <a href="https://github.com/0xelitesystem/readme-slop-checker" target="_blank" rel="noopener">readme-slop-checker</a> &middot; <a href="https://github.com/0xelitesystem/prompt-templates" target="_blank" rel="noopener">prompt-templates</a></p>
+    <p>Pricing values in this tool reflect publicly listed per-1M-token rates. Verify with Anthropic before relying on totals. Costs are calculated estimates, not invoices. Not affiliated with Anthropic. API costs are billed to your own account.</p>
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+// -----------------------------------------------------------------------------
+// MODELS configuration. Pricing is USD per 1M tokens, last verified for the
+// public Anthropic API. To update, edit this block and the timestamp comment.
+// Last verified pricing snapshot: 2026.
+// -----------------------------------------------------------------------------
+const MODELS = [
+  {
+    id: "claude-opus-4-7",
+    name: "Opus 4.7",
+    tier: "Frontier",
+    inputPer1M: 15.00,
+    outputPer1M: 75.00,
+    contextWindow: 200000
+  },
+  {
+    id: "claude-opus-4-6",
+    name: "Opus 4.6",
+    tier: "Frontier",
+    inputPer1M: 15.00,
+    outputPer1M: 75.00,
+    contextWindow: 200000
+  },
+  {
+    id: "claude-sonnet-4-6",
+    name: "Sonnet 4.6",
+    tier: "Balanced",
+    inputPer1M: 3.00,
+    outputPer1M: 15.00,
+    contextWindow: 200000
+  },
+  {
+    id: "claude-haiku-4-5",
+    name: "Haiku 4.5",
+    tier: "Fast",
+    inputPer1M: 1.00,
+    outputPer1M: 5.00,
+    contextWindow: 200000
+  }
+];
+
+const DEFAULT_SELECTED = ["claude-sonnet-4-6", "claude-haiku-4-5"];
+
+const API_BASE = "https://api.anthropic.com/v1/messages";
+const API_VERSION = "2023-06-01";
+
+// -----------------------------------------------------------------------------
+// State. The API key is the only sensitive value; held in a module-scoped
+// variable, never persisted, never logged.
+// -----------------------------------------------------------------------------
+let apiKey = null;
+let lastResults = null; // for JSON export
+
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+));
+
+function setStatus(el, kind, label, msg, withSpinner = false) {
+  if (!kind) { el.innerHTML = ""; return; }
+  const spin = withSpinner ? '<span class="spinner" aria-hidden="true"></span>' : "";
+  el.innerHTML = `<div class="status ${escapeHtml(kind)}">${spin}<span class="label">${escapeHtml(label)}</span><span>${escapeHtml(msg)}</span></div>`;
+}
+
+function formatCost(usd) {
+  if (usd >= 1) return "$" + usd.toFixed(4);
+  if (usd >= 0.01) return "$" + usd.toFixed(5);
+  return "$" + usd.toFixed(6);
+}
+
+function calcCost(model, usage) {
+  const inTokens = usage && usage.input_tokens ? usage.input_tokens : 0;
+  const outTokens = usage && usage.output_tokens ? usage.output_tokens : 0;
+  const cost = (inTokens / 1_000_000) * model.inputPer1M + (outTokens / 1_000_000) * model.outputPer1M;
+  return { inTokens, outTokens, cost };
+}
+
+// -----------------------------------------------------------------------------
+// Model grid render
+// -----------------------------------------------------------------------------
+function renderModelGrid() {
+  const grid = $("model-grid");
+  grid.innerHTML = MODELS.map(m => `
+    <label class="model-card">
+      <input type="checkbox" name="model" value="${escapeHtml(m.id)}"${DEFAULT_SELECTED.includes(m.id) ? " checked" : ""}>
+      <div class="model-name">${escapeHtml(m.name)}</div>
+      <div class="model-tier">${escapeHtml(m.tier)}</div>
+      <div class="model-pricing">$${m.inputPer1M.toFixed(2)} in / $${m.outputPer1M.toFixed(2)} out</div>
+    </label>
+  `).join("");
+}
+
+function getSelectedModelIds() {
+  return [...document.querySelectorAll('input[name="model"]:checked')].map(el => el.value);
+}
+
+// -----------------------------------------------------------------------------
+// API client
+// -----------------------------------------------------------------------------
+function buildHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "x-api-key": apiKey,
+    "anthropic-version": API_VERSION,
+    "anthropic-dangerous-direct-browser-access": "true"
+  };
+}
+
+async function validateKey(key) {
+  const r = await fetch(API_BASE, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": API_VERSION,
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5",
+      max_tokens: 1,
+      messages: [{ role: "user", content: "hi" }]
+    })
+  });
+  if (r.status === 401) throw new Error("Invalid API key.");
+  if (r.status === 403) throw new Error("Key lacks access to validation model.");
+  if (r.status === 429) throw new Error("Rate limited. Try again in a moment.");
+  if (!r.ok) {
+    let detail = "";
+    try { const j = await r.json(); detail = j.error && j.error.message ? j.error.message : ""; } catch {}
+    throw new Error(`Validation failed (${r.status}): ${detail}`);
+  }
+  return true;
+}
+
+async function runOne(modelId, userPrompt, systemPrompt, maxTokens) {
+  const t0 = performance.now();
+  const body = {
+    model: modelId,
+    max_tokens: maxTokens,
+    messages: [{ role: "user", content: userPrompt }]
+  };
+  if (systemPrompt && systemPrompt.trim()) body.system = systemPrompt.trim();
+
+  const r = await fetch(API_BASE, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(body)
+  });
+  const latencyMs = Math.round(performance.now() - t0);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const detail = (data && data.error && data.error.message) || `HTTP ${r.status}`;
+    return { ok: false, latencyMs, error: detail, usage: null, text: null };
+  }
+  const text = (data.content || [])
+    .filter(b => b.type === "text")
+    .map(b => b.text)
+    .join("");
+  return { ok: true, latencyMs, error: null, usage: data.usage || null, text };
+}
+
+// -----------------------------------------------------------------------------
+// Result rendering
+// -----------------------------------------------------------------------------
+function renderResultCard(modelId, state) {
+  const m = MODELS.find(x => x.id === modelId);
+  const card = document.createElement("div");
+  card.className = "result-card";
+  card.dataset.modelId = modelId;
+
+  const head = document.createElement("div");
+  head.className = "result-head";
+  head.innerHTML = `<span class="name">${escapeHtml(m.name)}</span><span class="badge ${state}" data-badge>${state === "pending" ? "Running" : (state === "ok" ? "OK" : "Error")}</span>`;
+  card.appendChild(head);
+
+  const body = document.createElement("div");
+  body.className = "result-body placeholder";
+  body.dataset.body = "";
+  body.textContent = state === "pending" ? "Waiting for response..." : "";
+  card.appendChild(body);
+
+  const foot = document.createElement("div");
+  foot.className = "result-foot";
+  foot.innerHTML = `
+    <div class="metric"><span class="lbl">Latency</span><span class="val" data-latency>—</span></div>
+    <div class="metric"><span class="lbl">Tokens</span><span class="val" data-tokens>—</span></div>
+    <div class="metric"><span class="lbl">Cost</span><span class="val" data-cost>—</span></div>
+  `;
+  card.appendChild(foot);
+  return card;
+}
+
+function updateResultCard(card, modelId, result) {
+  const m = MODELS.find(x => x.id === modelId);
+  const badge = card.querySelector("[data-badge]");
+  const body = card.querySelector("[data-body]");
+  const latencyEl = card.querySelector("[data-latency]");
+  const tokensEl = card.querySelector("[data-tokens]");
+  const costEl = card.querySelector("[data-cost]");
+
+  if (result.ok) {
+    badge.className = "badge ok";
+    badge.textContent = "OK";
+    body.classList.remove("placeholder");
+    body.textContent = result.text || "(empty response)";
+    latencyEl.textContent = result.latencyMs + " ms";
+    if (result.usage) {
+      const c = calcCost(m, result.usage);
+      tokensEl.textContent = `${c.inTokens} / ${c.outTokens}`;
+      costEl.textContent = formatCost(c.cost);
+    } else {
+      tokensEl.textContent = "—";
+      costEl.textContent = "—";
+    }
+  } else {
+    badge.className = "badge err";
+    badge.textContent = "Error";
+    body.classList.remove("placeholder");
+    body.style.color = "var(--error)";
+    body.textContent = result.error || "Request failed";
+    latencyEl.textContent = result.latencyMs ? result.latencyMs + " ms" : "—";
+    tokensEl.textContent = "—";
+    costEl.textContent = "—";
+  }
+}
+
+function renderAggregate(results) {
+  const agg = $("aggregate");
+  const successful = results.filter(r => r.ok && r.usage);
+  if (successful.length < 1) { agg.classList.remove("visible"); agg.innerHTML = ""; return; }
+
+  let totalCost = 0, totalLatency = 0, totalIn = 0, totalOut = 0;
+  let fastest = null, cheapest = null;
+  for (const r of successful) {
+    const m = MODELS.find(x => x.id === r.modelId);
+    const c = calcCost(m, r.usage);
+    totalCost += c.cost;
+    totalLatency += r.latencyMs;
+    totalIn += c.inTokens;
+    totalOut += c.outTokens;
+    if (!fastest || r.latencyMs < fastest.latencyMs) fastest = { name: m.name, latencyMs: r.latencyMs };
+    if (!cheapest || c.cost < cheapest.cost) cheapest = { name: m.name, cost: c.cost };
+  }
+
+  agg.innerHTML = `
+    <div class="agg-cell"><div class="lbl">Total cost</div><div class="val">${formatCost(totalCost)}</div></div>
+    <div class="agg-cell"><div class="lbl">Total tokens</div><div class="val">${totalIn} / ${totalOut}</div></div>
+    <div class="agg-cell"><div class="lbl">Fastest</div><div class="val">${escapeHtml(fastest.name)} (${fastest.latencyMs}ms)</div></div>
+    <div class="agg-cell"><div class="lbl">Cheapest</div><div class="val">${escapeHtml(cheapest.name)} (${formatCost(cheapest.cost)})</div></div>
+    <div class="agg-cell"><div class="lbl">Models run</div><div class="val">${successful.length} / ${results.length}</div></div>
+  `;
+  agg.classList.add("visible");
+}
+
+// -----------------------------------------------------------------------------
+// Run flow
+// -----------------------------------------------------------------------------
+async function runAll() {
+  const userPrompt = $("user-prompt").value.trim();
+  if (!userPrompt) {
+    setStatus($("run-status"), "warn", "Empty", "Type a prompt first.");
+    $("user-prompt").focus();
+    return;
+  }
+  const selected = getSelectedModelIds();
+  if (selected.length === 0) {
+    setStatus($("run-status"), "warn", "Empty", "Select at least one model.");
+    return;
+  }
+  const systemPrompt = $("system-prompt").value;
+  const maxTokens = Math.max(1, Math.min(8192, parseInt($("max-tokens").value, 10) || 1024));
+
+  $("results-section").style.display = "block";
+  const grid = $("results-grid");
+  grid.innerHTML = "";
+  const cards = {};
+  for (const id of selected) {
+    const card = renderResultCard(id, "pending");
+    grid.appendChild(card);
+    cards[id] = card;
+  }
+  $("aggregate").classList.remove("visible");
+  $("aggregate").innerHTML = "";
+  $("run-btn").disabled = true;
+  $("export-btn").disabled = true;
+  $("clear-results-btn").disabled = true;
+  setStatus($("run-status"), "ok", "Running", `Sending prompt to ${selected.length} model${selected.length === 1 ? "" : "s"}...`, true);
+
+  // Fire all in parallel; render each as it completes.
+  const promises = selected.map(id =>
+    runOne(id, userPrompt, systemPrompt, maxTokens).then(result => {
+      updateResultCard(cards[id], id, result);
+      return { modelId: id, ...result };
+    }).catch(err => {
+      const result = { ok: false, latencyMs: 0, error: err.message || "Unknown error", usage: null, text: null };
+      updateResultCard(cards[id], id, result);
+      return { modelId: id, ...result };
+    })
+  );
+  const results = await Promise.all(promises);
+
+  lastResults = {
+    timestamp: new Date().toISOString(),
+    userPrompt,
+    systemPrompt: systemPrompt && systemPrompt.trim() ? systemPrompt.trim() : null,
+    maxTokens,
+    runs: results
+  };
+
+  renderAggregate(results);
+  $("run-btn").disabled = false;
+  $("export-btn").disabled = false;
+  $("clear-results-btn").disabled = false;
+  setStatus($("run-status"), "", "", "");
+  $("results-section").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// -----------------------------------------------------------------------------
+// Export
+// -----------------------------------------------------------------------------
+function exportJson() {
+  if (!lastResults) return;
+  const blob = new Blob([JSON.stringify(lastResults, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `claude-eval-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+}
+
+function clearResults() {
+  $("results-grid").innerHTML = "";
+  $("aggregate").classList.remove("visible");
+  $("aggregate").innerHTML = "";
+  $("results-section").style.display = "none";
+  $("export-btn").disabled = true;
+  $("clear-results-btn").disabled = true;
+  lastResults = null;
+}
+
+// -----------------------------------------------------------------------------
+// Wiring
+// -----------------------------------------------------------------------------
+$("validate-btn").addEventListener("click", async () => {
+  const key = $("api-key").value.trim();
+  if (!key) {
+    setStatus($("key-status"), "warn", "Empty", "Paste your key first.");
+    $("api-key").focus();
+    return;
+  }
+  if (!key.startsWith("sk-ant-")) {
+    setStatus($("key-status"), "err", "Invalid", 'Anthropic keys start with "sk-ant-".');
+    return;
+  }
+  $("validate-btn").disabled = true;
+  setStatus($("key-status"), "ok", "Checking", "Validating with Anthropic...", true);
+  try {
+    await validateKey(key);
+    apiKey = key;
+    $("api-key").value = "";
+    $("key-section").dataset.state = "validated";
+    setStatus($("key-status"), "", "", "");
+  } catch (err) {
+    apiKey = null;
+    setStatus($("key-status"), "err", "Failed", err.message);
+  } finally {
+    $("validate-btn").disabled = false;
+  }
+});
+
+$("clear-btn").addEventListener("click", () => {
+  apiKey = null;
+  $("key-section").dataset.state = "empty";
+  clearResults();
+  setStatus($("key-status"), "", "", "");
+  $("api-key").focus();
+});
+
+$("run-btn").addEventListener("click", runAll);
+$("export-btn").addEventListener("click", exportJson);
+$("clear-results-btn").addEventListener("click", clearResults);
+
+$("user-prompt").addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    $("run-btn").click();
+  }
+});
+$("api-key").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    $("validate-btn").click();
+  }
+});
+
+// Theme toggle
+function applyTheme(theme) {
+  document.body.dataset.theme = theme;
+  $("theme-label").textContent = theme === "dark" ? "Light" : "Dark";
+  $("theme-btn").setAttribute("aria-pressed", String(theme === "dark"));
+  const icon = $("theme-icon");
+  if (theme === "dark") {
+    icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+  } else {
+    icon.innerHTML = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>';
+  }
+}
+$("theme-btn").addEventListener("click", () => {
+  applyTheme(document.body.dataset.theme === "dark" ? "light" : "dark");
+});
+if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+  applyTheme("dark");
+}
+
+// Initial render
+renderModelGrid();
+</script>
+</body>
+</html>
