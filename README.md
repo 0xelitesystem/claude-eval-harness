@@ -2,6 +2,8 @@
 
 Run the same prompt against multiple Claude models side-by-side. Compare outputs, latency, and cost. BYOK. Single HTML file.
 
+**Live demo:** https://0xelitesystem.github.io/claude-eval-harness/
+
 ## Why
 
 Picking the right Claude model for a task is a real decision: Opus is smartest, Haiku is cheapest and fastest, Sonnet is the middle. Most people pick one and stick with it without testing whether they could downshift to a cheaper tier with no quality loss.
@@ -81,7 +83,7 @@ MIT. See [LICENSE](LICENSE).
 
 ## Related
 
-- [prompt-templates](https://github.com/0xelitesystem/prompt-templates) — production prompts targeting LLM failure modes
-- [byok-patterns](https://github.com/0xelitesystem/byok-patterns) — BYOK reference implementations
-- [readme-slop-checker](https://github.com/0xelitesystem/readme-slop-checker) — audit a README for AI cliches
-- [claude-skills-templates](https://github.com/0xelitesystem/claude-skills-templates) — five reference Claude Skill patterns
+- [prompt-templates](https://github.com/0xelitesystem/prompt-templates), production prompts targeting LLM failure modes
+- [byok-patterns](https://github.com/0xelitesystem/byok-patterns), BYOK reference implementations
+- [readme-slop-checker](https://github.com/0xelitesystem/readme-slop-checker), audit a README for AI cliches
+- [claude-skills-templates](https://github.com/0xelitesystem/claude-skills-templates), five reference Claude Skill patterns
