@@ -716,9 +716,9 @@ function renderResultCard(modelId, state) {
   const foot = document.createElement("div");
   foot.className = "result-foot";
   foot.innerHTML = `
-    <div class="metric"><span class="lbl">Latency</span><span class="val" data-latency>—</span></div>
-    <div class="metric"><span class="lbl">Tokens</span><span class="val" data-tokens>—</span></div>
-    <div class="metric"><span class="lbl">Cost</span><span class="val" data-cost>—</span></div>
+    <div class="metric"><span class="lbl">Latency</span><span class="val" data-latency>-</span></div>
+    <div class="metric"><span class="lbl">Tokens</span><span class="val" data-tokens>-</span></div>
+    <div class="metric"><span class="lbl">Cost</span><span class="val" data-cost>-</span></div>
   `;
   card.appendChild(foot);
   return card;
@@ -743,8 +743,8 @@ function updateResultCard(card, modelId, result) {
       tokensEl.textContent = `${c.inTokens} / ${c.outTokens}`;
       costEl.textContent = formatCost(c.cost);
     } else {
-      tokensEl.textContent = "—";
-      costEl.textContent = "—";
+      tokensEl.textContent = "-";
+      costEl.textContent = "-";
     }
   } else {
     badge.className = "badge err";
@@ -752,9 +752,9 @@ function updateResultCard(card, modelId, result) {
     body.classList.remove("placeholder");
     body.style.color = "var(--error)";
     body.textContent = result.error || "Request failed";
-    latencyEl.textContent = result.latencyMs ? result.latencyMs + " ms" : "—";
-    tokensEl.textContent = "—";
-    costEl.textContent = "—";
+    latencyEl.textContent = result.latencyMs ? result.latencyMs + " ms" : "-";
+    tokensEl.textContent = "-";
+    costEl.textContent = "-";
   }
 }
 
