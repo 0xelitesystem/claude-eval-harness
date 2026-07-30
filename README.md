@@ -77,6 +77,10 @@ That's it. Free hosting, your domain, BYOK so users pay their own API costs.
 - Vanilla JS, no frameworks, no dependencies, no build
 - Tested in current Chrome, Firefox, Safari
 
+## More
+
+Part of a catalog of single-file browser tools and plain-language references, all MIT licensed and dependency-free: [0xelitesystem.github.io](https://0xelitesystem.github.io/). Built by [elitesystem.ai](https://elitesystem.ai).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
