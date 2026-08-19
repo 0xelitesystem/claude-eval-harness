@@ -91,3 +91,5 @@ MIT. See [LICENSE](LICENSE).
 - [byok-patterns](https://github.com/0xelitesystem/byok-patterns), BYOK reference implementations
 - [readme-slop-checker](https://github.com/0xelitesystem/readme-slop-checker), audit a README for AI cliches
 - [claude-skills-templates](https://github.com/0xelitesystem/claude-skills-templates), five reference Claude Skill patterns
+
+Independent project. Not affiliated with, endorsed by, or sponsored by Anthropic. Claude is a trademark of Anthropic PBC.
