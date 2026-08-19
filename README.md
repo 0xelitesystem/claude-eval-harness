@@ -56,7 +56,7 @@ This pattern follows [byok-patterns/browser-byok](https://github.com/0xelitesyst
 
 Push this repo and enable GitHub Pages:
 
-1. Settings → Pages
+1. Settings -> Pages
 2. Source: Deploy from a branch
 3. Branch: main, folder /(root)
 4. Save. URL appears at the top.
